@@ -89,6 +89,52 @@ For context: Children use **free Google Voice numbers** (one per child), registe
 After account setup, they communicate via **Signal usernames**, not phone numbers. This is fully
 supported by Molly/Signal today and requires no app changes.
 
+## SSL Certificate Issue (Java/Gradle) — Blocking Build Validation
+
+**Problem:** `./gradlew` commands fail with `SSLHandshakeException: PKIX path building failed`. This
+occurs because the JVM's default certificate store (`cacerts`) is missing or outdated root CA
+certificates trusted by `services.gradle.org` and Maven Central.
+
+**Why it happens:** Java installations include a snapshot of root certificates. If Windows or system
+certificates have been updated but Java hasn't, the JVM can't validate modern certificate chains.
+This is common on older Java installations (Java 8/11 on Windows 11).
+
+**Root cause on this machine:** Likely Java runtime has outdated or incomplete root CA certificates.
+
+**How to fix:**
+
+1. **Update Java first** (simplest, recommended):
+   - Download latest LTS JDK: https://adoptium.net (Eclipse Adoptium) or https://www.oracle.com/java/
+   - Install Java 17+ (newer versions include current root certificates)
+   - Verify: `java -version` shows 17+
+   - This often resolves the issue automatically
+
+2. **If updating Java doesn't work, manually update cacerts:**
+   ```bash
+   # Find your JDK (e.g., C:\Program Files\Java\jdk-17)
+   # Locate keytool: <JDK>\bin\keytool.exe
+   
+   # Download certificate chain from services.gradle.org
+   # (Use browser or: openssl s_client -connect services.gradle.org:443)
+   
+   # Import the certificate:
+   keytool -import -alias gradle-ca -file <downloaded-cert> \
+     -keystore "C:\Program Files\Java\jdk-17\lib\security\cacerts" \
+     -storepass changeit -noprompt
+   ```
+
+3. **Verify Gradle works:**
+   ```bash
+   cd c:\Users\Alex Ghosh\Documents\Visual Studio 2017\Projects\ForkOfMolly
+   ./gradlew --version
+   ```
+
+**When to address:** Before Phase 2 or 3 — we need successful builds to validate code. The
+issue is documented in `project_status.md` under "Known Issues / Deferred Work" with the label
+`[BLOCKING]`.
+
+**Priority:** High — all future phases depend on this.
+
 ## License
 
 Molly and this fork are licensed under AGPLv3. For personal family use with no public distribution,

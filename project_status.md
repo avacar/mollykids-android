@@ -205,6 +205,12 @@ PIN setup before the child can use the app.
 
 ## Known Issues / Deferred Work
 
+- **SSL certificate validation (BLOCKING):** Gradle wrapper and dependency downloads fail with `SSLHandshakeException: PKIX path building failed`. Root cause: JVM doesn't trust the certificate chain for `services.gradle.org` and Maven Central. This is likely due to outdated or missing root CA certificates in the Java keystore. 
+  - **Impact:** Cannot run `./gradlew` commands; build validation is blocked.
+  - **Solution options:** (1) Update Java cacerts with current root certificates; (2) Import the certificate chain manually; (3) Configure Gradle to bypass SSL validation (not recommended for production). 
+  - **When to address:** Before Phase 2 or 3 — we need working builds to validate code changes.
+  - **Environment:** Personal Windows 11 desktop; user is system admin.
+
 - **PIN brute-force:** Current SHA-256 hash offers no rate-limiting. On a rooted device, attacker
   could brute-force the PIN. For family use this is acceptable, but should be revisited if
   security requirements change (consider adding rate-limiting or key-stretching in the future).
