@@ -61,11 +61,19 @@ conversation memory to understand where we are.
 
 1. Read and update `project_status.md` with the current date and phase.
 2. Work on the active phase per the acceptance criteria listed in `project_status.md`.
-3. At the end of each session, update `project_status.md` to reflect progress:
-   - Mark the current phase status ([ ] Not started, [~] In progress, [x] Done)
-   - Add any discovered issues to "Known Issues / Deferred Work"
-   - Add any new feature ideas to the "Feature Backlog"
-4. Commit these documentation updates so the next session has fresh context.
+3. **At the end of each session**, update both `project_status.md` and `CLAUDE.md` to reflect progress:
+   - **`project_status.md`:**
+     - Mark the current phase status ([ ] Not started, [~] In progress, [x] Done)
+     - Update "Current Phase" at the top
+     - Add any discovered issues to "Known Issues / Deferred Work"
+     - Add any new feature ideas to the "Feature Backlog"
+     - Add a Session Notes entry with the date and summary of work completed
+   - **`CLAUDE.md`** (this file):
+     - Update any development principles that turned out to be wrong or need refinement
+     - Add new guidance based on lessons learned in this session (e.g. "We found it's better to X rather than Y")
+4. Commit both documentation updates so the next session has fresh context.
+
+**Important:** At the end of every session, the assistant will ask for permission to commit these documentation updates. Example: "I've finished Phase X. May I update project_status.md and CLAUDE.md, then commit?" — the user should explicitly approve before committing.
 
 ## Key Files
 
