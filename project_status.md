@@ -19,12 +19,12 @@ create `kids` Gradle flavor.
 
 **Acceptance criteria:**
 - [x] Molly upstream cloned into ForkOfMolly directory
-- [~] `kids` flavor added to `app/build.gradle.kts` (build validation deferred — Gradle requires internet access)
+- [x] `kids` flavor added to `app/build.gradle.kts` (build validated ✅ 2026-04-19)
 - [ ] CI/build system (if any) works with both `kids` and non-kids flavors
 - [ ] `README.md` explains that this is a parental-controls fork of Molly
 - [x] All Phase 0 files committed with clear commit message
 
-**Status:** [x] Done (core setup complete; build validation and README deferred to next session)
+**Status:** [x] Done (core setup complete; README still pending)
 
 ---
 
@@ -205,12 +205,6 @@ PIN setup before the child can use the app.
 
 ## Known Issues / Deferred Work
 
-- **SSL certificate validation (BLOCKING):** Gradle wrapper and dependency downloads fail with `SSLHandshakeException: PKIX path building failed`. Root cause: JVM doesn't trust the certificate chain for `services.gradle.org` and Maven Central. This is likely due to outdated or missing root CA certificates in the Java keystore. 
-  - **Impact:** Cannot run `./gradlew` commands; build validation is blocked.
-  - **Solution options:** (1) Update Java cacerts with current root certificates; (2) Import the certificate chain manually; (3) Configure Gradle to bypass SSL validation (not recommended for production). 
-  - **When to address:** Before Phase 2 or 3 — we need working builds to validate code changes.
-  - **Environment:** Personal Windows 11 desktop; user is system admin.
-
 - **PIN brute-force:** Current SHA-256 hash offers no rate-limiting. On a rooted device, attacker
   could brute-force the PIN. For family use this is acceptable, but should be revisited if
   security requirements change (consider adding rate-limiting or key-stretching in the future).
@@ -263,7 +257,7 @@ PIN setup before the child can use the app.
 - ✅ Committed Phase 0 work (2 commits)
 
 **Lessons learned:**
-- Gradle wrapper requires internet for dependency download; environment may have SSL certificate issues
+- Gradle wrapper requires internet for dependency download
 - Phase 0 is functionally complete (repo initialized, flavor added, documented)
 - Next session should: (1) optionally validate Gradle build if internet is available, (2) create README.md for MollyKids overview, (3) start Phase 1 (ParentalControlValues data model)
 
@@ -277,10 +271,29 @@ PIN setup before the child can use the app.
 - ✅ Registered ParentalControlValues in SignalStore.kt (init property, onFirstEverAppLaunch, companion accessor)
 - ✅ Created comprehensive unit tests (12 test cases covering defaults, PIN hashing, salt generation, thread ID storage)
 - ✅ Committed Phase 1 work (1 commit)
-- ❌ Gradle build validation deferred due to SSL certificate issues in environment
+- ✅ Gradle build validation passed (2026-04-19) — `assembleProdKidsDebug` BUILD SUCCESSFUL
+- ✅ Unit tests passed (2026-04-19) — all 12 ParentalControlValuesTest cases green
+- Fixed test compilation errors: KeyValueStore constructor API change (now takes KeyValuePersistentStorage), assertk Set assertion (containsExactly → isEqualTo)
 
 **Lessons learned:**
 - Random salt approach (device-local) chosen over ACI-based salt for better security and clarity on multi-device behavior
 - PIN salt is generated lazily (not during app launch) to keep onFirstEverAppLaunch() simple
 - ParentalControlValues deliberately omitted from backup inclusion — parental config must be set fresh on any new device
 - Existing test pattern (BackupDownloadNotifierUtilTest.kt) uses assertk; replicated for consistency
+
+**2026-04-18 (Housekeeping — SSL resolved):**
+- ✅ SSL certificate issue resolved — Gradle builds now unblocked
+- ✅ Removed SSL blocking issue from Known Issues and CLAUDE.md
+
+**2026-04-19 (Phase 0 + Phase 1 build validation):**
+- ✅ Installed JDK 21 LTS (Adoptium Temurin) + JDK 17 LTS (Adoptium Temurin); configured Gradle via `org.gradle.java.home` and `org.gradle.java.installations.paths`
+- ✅ Installed Android Studio + Android SDK (platform 36, build-tools 35.0.0 auto-downloaded by Gradle)
+- ✅ Phase 0 validated: `./gradlew :app:assembleProdKidsDebug` BUILD SUCCESSFUL (8m first run)
+- ✅ Phase 1 validated: all 12 ParentalControlValuesTest cases pass
+- ✅ Fixed 2 test compilation errors discovered during validation (API drift from upstream + assertk Set assertion)
+
+**Lessons learned:**
+- Gradle requires JDK 17 toolchain for compilation (via `kotlinJvmTarget`); JDK 21 is used as the daemon JVM only
+- `org.gradle.java.installations.paths` must be in `~/.gradle/gradle.properties` (not project-level) to work for included builds like `build-logic`
+- `KeyValueStore` constructor now takes `KeyValuePersistentStorage` (not `KeyValueDataSet` directly); tests need an in-memory wrapper
+- assertk has no `containsExactly` for `Set<T>`; use `isEqualTo(setOf(...))` instead
