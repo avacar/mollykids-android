@@ -1,7 +1,7 @@
 # MollyKids Project Status
 
-**Last updated:** 2026-04-18  
-**Current phase:** Phase 2 — Conversation List Filtering
+**Last updated:** 2026-04-19  
+**Current phase:** Phase 3 — Block New Conversations & Calls
 
 ---
 
@@ -57,14 +57,14 @@ Implement in `ConversationListViewModel` as a filter step on the data stream.
 - `app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListViewModel.kt`
 
 **Acceptance criteria:**
-- [ ] Conversation list filtered via `.map { list -> if (parentalModeEnabled) filter(list) else list }`
-- [ ] Unit/integration test: parental mode ON, two threads (allowed + disallowed) → only allowed thread appears
-- [ ] Test: parental mode OFF → all threads appear
-- [ ] Test: dynamically toggling parental mode updates visible list
-- [ ] No changes to database queries (filter only in ViewModel)
-- [ ] All Phase 2 commits made
+- [x] Conversation list filtered via `.map { list -> if (parentalModeEnabled) filter(list) else list }`
+- [x] Unit/integration test: parental mode ON, two threads (allowed + disallowed) → only allowed thread appears
+- [x] Test: parental mode OFF → all threads appear
+- [x] Test: dynamically toggling parental mode updates visible list
+- [x] No changes to database queries (filter only in ViewModel)
+- [x] All Phase 2 commits made
 
-**Status:** [ ] Not started
+**Status:** [x] Done
 
 ---
 
@@ -284,6 +284,19 @@ PIN setup before the child can use the app.
 **2026-04-18 (Housekeeping — SSL resolved):**
 - ✅ SSL certificate issue resolved — Gradle builds now unblocked
 - ✅ Removed SSL blocking issue from Known Issues and CLAUDE.md
+
+**2026-04-19 (Phase 2 — Conversation List Filtering):**
+- ✅ Added `settingsChanges: PublishSubject<Unit>` to `ParentalControlValues`; changed `parentalModeEnabled` to explicit getter/setter; `setAllowedThreadIds` also emits on write
+- ✅ Added `applyParentalFilter(list, enabled, allowedIds)` companion function to `ConversationListViewModel`
+- ✅ Chained `.map` on `conversationsState` to apply parental filter on every list emission
+- ✅ Subscribed to `settingsChanges` in ViewModel `init` to call `controller.onDataInvalidated()` when settings change (reactive update without DB query changes)
+- ✅ Created `ConversationListParentalFilterTest.kt` (8 unit tests) and added 2 `settingsChanges` tests to `ParentalControlValuesTest.kt` (14 tests total now)
+- ✅ All tests pass; `assembleProdKidsDebug` BUILD SUCCESSFUL
+
+**Lessons learned:**
+- Non-THREAD `Conversation` items (headers, footers) have `threadId < 0`; the filter must pass them through unconditionally or the list structure breaks
+- Extracted filter as `internal` companion function enables clean unit testing without full ViewModel scaffolding
+- `PublishSubject.toFlowable(BackpressureStrategy.LATEST)` is the correct bridge when subscribing to a Subject inside a Flowable pipeline in the ViewModel
 
 **2026-04-19 (Phase 0 + Phase 1 build validation):**
 - ✅ Installed JDK 21 LTS (Adoptium Temurin) + JDK 17 LTS (Adoptium Temurin); configured Gradle via `org.gradle.java.home` and `org.gradle.java.installations.paths`
