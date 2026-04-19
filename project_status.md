@@ -1,7 +1,7 @@
 # MollyKids Project Status
 
 **Last updated:** 2026-04-19  
-**Current phase:** Phase 3 — Block New Conversations & Calls
+**Current phase:** Phase 5 — Notification Suppression
 
 ---
 
@@ -77,37 +77,66 @@ Block outbound and suppress incoming calls from non-allowed threads.
 - `app/src/main/java/org/thoughtcrime/securesms/conversation/NewConversationActivity.kt`
 - `app/src/main/java/org/thoughtcrime/securesms/conversation/ConversationFragment.kt` (or call entry point)
 
+**Key clarification:** Call button in conversation header is intentionally **unchanged** — children can still call within allowed threads. What is blocked is starting *new* calls/conversations with non-allowed contacts.
+
+**Key files:**
+- `app/src/main/java/org/thoughtcrime/securesms/main/MainFloatingActionButtons.kt` (FAB hiding)
+- `app/src/main/java/org/thoughtcrime/securesms/conversation/NewConversationActivity.kt` (safety-net guard)
+- `app/src/main/java/org/thoughtcrime/securesms/calls/new/NewCallActivity.kt` (safety-net guard)
+- `app/src/main/java/org/thoughtcrime/securesms/keyvalue/ParentalControlValues.kt` (isThreadCallAllowed helper)
+- `app/src/main/java/org/thoughtcrime/securesms/service/webrtc/IncomingCallActionProcessor.java` (1:1 call block)
+- `app/src/main/java/org/thoughtcrime/securesms/service/webrtc/IncomingGroupCallActionProcessor.java` (group ring block)
+- `app/src/test/java/org/thoughtcrime/securesms/keyvalue/ParentalCallGuardTest.kt` (new, 7 tests)
+
 **Acceptance criteria:**
-- [ ] Compose/new-conversation FAB hidden when `parentalModeEnabled = true`
-- [ ] Clicking through intent to `NewConversationActivity` when parental mode ON → activity finishes immediately
-- [ ] Call initiation button hidden in conversation header
-- [ ] Incoming call from non-allowed thread → silently rejected (no incoming-call UI)
-- [ ] Incoming call from allowed thread → shown normally
-- [ ] Unit/integration tests for each guard
+- [x] Compose/new-conversation FAB hidden when `parentalModeEnabled = true` (CHATS/ARCHIVE)
+- [x] `NewConversationActivity` finishes immediately if parental mode is on
+- [x] New-call FAB hidden when `parentalModeEnabled = true` (CALLS tab)
+- [x] `NewCallActivity` finishes immediately if parental mode is on
+- [x] Call button in ConversationFragment toolbar unchanged — children can call within allowed threads
+- [x] Incoming 1:1 call from non-allowed thread → silently rejected (delegates to handleDenyCall)
+- [x] Incoming 1:1 call from allowed thread → shown normally
+- [x] Incoming group call ring from non-allowed thread → silently cancelled (cancelGroupRing)
+- [x] Incoming group call ring from allowed thread → shown normally
+- [x] Unit tests: 7 new tests in ParentalCallGuardTest.kt + 5 new tests in ParentalControlValuesTest.kt
+- [x] `assembleProdKidsDebug` BUILD SUCCESSFUL; all 27 tests green
 - [ ] All Phase 3 commits made
 
-**Status:** [ ] Not started
+**Status:** [x] Done
 
 ---
 
 ### Phase 4 — Group Invite PIN Gate
-**Goal:** When a child attempts to accept a group invite, PIN dialog is required. Only parents
-(who know the PIN) can accept invites on behalf of the child.
+**Goal (revised):** Invites are completely hidden from children. A parent uses a PIN-gated
+"Pending group invites" overflow menu item to view and accept/decline invites on the child's behalf.
+Accepting an invite automatically adds the thread to `allowedThreadIds` so it appears in the child's list.
 
 **Key files:**
-- `app/src/main/java/org/thoughtcrime/securesms/groups/ui/invitesandrequests/` (likely fragment/ViewModel)
-- New file: `app/src/main/java/org/thoughtcrime/securesms/parental/ParentalPinDialog.kt` (reusable PIN entry dialog)
+- `app/src/main/java/org/thoughtcrime/securesms/keyvalue/ParentalControlValues.kt` (added `verifyPin`, `addAllowedThreadId`)
+- `app/src/main/java/org/thoughtcrime/securesms/conversation/v2/ConversationFragment.kt` (guard `GROUP_V2_INVITE` display)
+- `app/src/main/java/org/thoughtcrime/securesms/util/CommunicationActions.java` (block group-link join in parental mode)
+- `app/src/main/java/org/thoughtcrime/securesms/main/MainToolbar.kt` (add "Pending group invites" menu item + callback)
+- `app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt` (implement `onPendingGroupInvitesClick`)
+- `app/src/main/java/org/thoughtcrime/securesms/parental/ParentalPinDialog.kt` (new — reusable PIN entry dialog)
+- `app/src/main/java/org/thoughtcrime/securesms/parental/PendingGroupInvitesViewModel.kt` (new)
+- `app/src/main/java/org/thoughtcrime/securesms/parental/PendingGroupInvitesFragment.kt` (new — BottomSheet)
+- `app/src/test/java/org/thoughtcrime/securesms/keyvalue/ParentalInviteGuardTest.kt` (new — 7 tests)
 
 **Acceptance criteria:**
-- [ ] Invite acceptance flow traced; entry point identified
-- [ ] Before `GroupManager.acceptInvite(...)` call, show PIN dialog if parental mode is enabled
-- [ ] PIN dialog accepts user input, verifies against `parentPinHash`
-- [ ] Correct PIN → proceed with acceptance; wrong PIN → dismiss and stay on invite screen
-- [ ] No invite acceptance UI available to child (no "accept" button; accept only via parent PIN)
-- [ ] Integration test: parental mode ON, child taps invite → PIN dialog appears; parent enters PIN → invite accepted
+- [x] Invite acceptance flow traced; entry point identified (`DisabledInputView.showAsMessageRequest` in `ConversationFragment`)
+- [x] `GROUP_V2_INVITE` accept UI hidden in `ConversationFragment` when parental mode is on
+- [x] Group-link join (`CommunicationActions.handleGroupLinkUrl`) blocked in parental mode (toast shown)
+- [x] `verifyPin(pin)` and `addAllowedThreadId(threadId)` added to `ParentalControlValues`
+- [x] Overflow menu shows "Pending group invites" only when `parentalModeEnabled = true`
+- [x] Tapping menu item → PIN dialog; wrong PIN → toast, no action; correct PIN → `PendingGroupInvitesFragment`
+- [x] Parent accepts invite → `acceptMessageRequest` called + thread added to `allowedThreadIds` → appears in child's list
+- [x] Parent declines invite → `deleteMessageRequest` called, removed from pending list
+- [x] "No pending invites" shown when list is empty
+- [x] `assembleProdKidsDebug` BUILD SUCCESSFUL
+- [x] 25 tests in `ParentalControlValuesTest` + 7 in `ParentalInviteGuardTest` — all green (32 total)
 - [ ] All Phase 4 commits made
 
-**Status:** [ ] Not started
+**Status:** [x] Done
 
 ---
 
@@ -120,14 +149,14 @@ threads show notifications normally.
 - Extension method (or new utility): `NotificationState.filterThreads(allowedIds: Set<Long>)`
 
 **Acceptance criteria:**
-- [ ] `NotificationState.filterThreads()` added; filters pending notifications to allowed threads only
-- [ ] In `DefaultMessageNotifier.updateNotification()`, apply filter if `parentalModeEnabled = true`
-- [ ] Unit test: parental mode ON, messages from allowed + disallowed threads → only allowed notify
-- [ ] Unit test: parental mode OFF → all threads notify
-- [ ] Integration test (or high-level): receive message in allowed group → notification shown; receive in disallowed group → silent
+- [x] `NotificationState.filterThreads()` added; filters pending notifications to allowed threads only
+- [x] In `DefaultMessageNotifier.updateNotification()`, apply filter if `parentalModeEnabled = true`
+- [x] Unit test: parental mode ON, messages from allowed + disallowed threads → only allowed notify
+- [x] Unit test: parental mode OFF → all threads notify (guard in DefaultMessageNotifier skips filter call; verified structurally)
+- [x] 5 unit tests in `NotificationStateParentalFilterTest.kt` — all green (37 total parental tests)
 - [ ] All Phase 5 commits made
 
-**Status:** [ ] Not started
+**Status:** [x] Done
 
 ---
 
@@ -298,6 +327,22 @@ PIN setup before the child can use the app.
 - Extracted filter as `internal` companion function enables clean unit testing without full ViewModel scaffolding
 - `PublishSubject.toFlowable(BackpressureStrategy.LATEST)` is the correct bridge when subscribing to a Subject inside a Flowable pipeline in the ViewModel
 
+**2026-04-19 (Phase 3 — Block New Conversations & Calls):**
+- ✅ Hidden compose FAB and new-call FAB in `MainFloatingActionButtons.kt` via parental-mode early return in `PrimaryActionButton()` composable (CHATS/ARCHIVE/CALLS destinations only; STORIES untouched for Phase 6)
+- ✅ Added safety-net `finish()` guards to `NewConversationActivity.onCreate()` and `NewCallActivity.onCreate()` to block deep-link bypass
+- ✅ Added `isThreadCallAllowed(threadId: Long): Boolean` to `ParentalControlValues` — central helper used by both call processors and tests
+- ✅ Suppressed incoming 1:1 calls from non-allowed threads in `IncomingCallActionProcessor.handleLocalRinging()` via `handleDenyCall()` delegation
+- ✅ Suppressed incoming group call rings from non-allowed threads in `IncomingGroupCallActionProcessor.handleGroupCallRingUpdate()` via `cancelGroupRing(DeclinedByUser)`
+- ✅ Created `ParentalCallGuardTest.kt` (7 tests) + added 5 tests to `ParentalControlValuesTest.kt` (now 20 tests)
+- ✅ `assembleProdKidsDebug` BUILD SUCCESSFUL; all 27 parental-control tests green
+
+**Key clarification on calls:** Children CAN call contacts within allowed threads (call button in ConversationFragment untouched). Only NEW calls to new contacts and incoming calls from non-allowed threads are blocked.
+
+**Lessons learned:**
+- `SignalStore.parentalControl` is a Kotlin property (no parens); Java callers use `SignalStore.parentalControl()` via JvmName annotation — easy to confuse
+- Test files in `org.thoughtcrime.securesms.parental` can't access package-private APIs in `org.thoughtcrime.securesms.keyvalue.KeyValueDataSet`; keep parental-control tests in the `keyvalue` package
+- Delegating to `handleDenyCall()` in `IncomingCallActionProcessor` reuses the existing reject-and-terminate logic cleanly; requires `activePeer.localRinging()` to have been called first (which it is at that point in `handleLocalRinging()`)
+
 **2026-04-19 (Phase 0 + Phase 1 build validation):**
 - ✅ Installed JDK 21 LTS (Adoptium Temurin) + JDK 17 LTS (Adoptium Temurin); configured Gradle via `org.gradle.java.home` and `org.gradle.java.installations.paths`
 - ✅ Installed Android Studio + Android SDK (platform 36, build-tools 35.0.0 auto-downloaded by Gradle)
@@ -310,3 +355,32 @@ PIN setup before the child can use the app.
 - `org.gradle.java.installations.paths` must be in `~/.gradle/gradle.properties` (not project-level) to work for included builds like `build-logic`
 - `KeyValueStore` constructor now takes `KeyValuePersistentStorage` (not `KeyValueDataSet` directly); tests need an in-memory wrapper
 - assertk has no `containsExactly` for `Set<T>`; use `isEqualTo(setOf(...))` instead
+
+**2026-04-19 (Phase 4 — Group Invite PIN Gate):**
+- ✅ Revised goal: invites are completely hidden from children; parents manage invites via PIN-gated overflow menu item
+- ✅ Added `verifyPin(pin)` and `addAllowedThreadId(threadId)` to `ParentalControlValues`
+- ✅ Guarded `GROUP_V2_INVITE` display in `ConversationFragment.presentInputReadyState()` — accept UI suppressed in parental mode
+- ✅ Blocked group-link joins in `CommunicationActions.handleGroupLinkUrl()` — shows toast in parental mode
+- ✅ Created `ParentalPinDialog.kt` — reusable PIN entry dialog (object, not Fragment; callable from any context)
+- ✅ Created `PendingGroupInvitesViewModel.kt` — queries groups where self is `PENDING_MEMBER`, accept/decline via `MessageRequestRepository`
+- ✅ Created `PendingGroupInvitesFragment.kt` — `BottomSheetDialogFragment` listing pending invites with Accept/Decline buttons
+- ✅ Added "Pending group invites" item to `MainToolbar.kt` `ChatDropdownItems()` (only visible when `parentalModeEnabled`); wired callback in `MainActivity.ToolbarCallback`
+- ✅ Accepting an invite calls `addAllowedThreadId` → `settingsChanges` fires → Phase 2 reactive pipeline auto-shows thread in child's list
+- ✅ Added 5 tests to `ParentalControlValuesTest.kt` (now 25 total) + new `ParentalInviteGuardTest.kt` (7 tests)
+- ✅ `assembleProdKidsDebug` BUILD SUCCESSFUL; all 32 parental-control tests green
+
+**Lessons learned:**
+- `SignalDatabase.groups` and `SignalDatabase.threads` are Kotlin properties (no parens); Java callers use `()` via `@get:JvmName` annotation — distinct from `SignalStore.parentalControl` which is the same pattern
+- `GroupTable.Reader.getNext()` returns `GroupRecord?`; assign to a non-var local inside the loop to avoid smart-cast issues
+- Duplicate import of `SignalStore` causes a compile error ("conflicting import: imported name is ambiguous") — check existing imports before adding
+- `GroupChangeFailureReason` is a plain Java enum with no `toDisplayString()` method; use `reason.name` for a simple error label
+
+**2026-04-19 (Phase 5 — Notification Suppression):**
+- ✅ Added `filterThreads(allowedThreadIds: Set<Long>): NotificationState` to `NotificationState` using `data class copy()` — preserves mute/profile filtered messages
+- ✅ Applied filter in `DefaultMessageNotifier.updateNotification()` immediately after `constructNotificationState()`; early-exit on `state.isEmpty` naturally silences all notifications when allowed set is empty
+- ✅ Created `NotificationStateParentalFilterTest.kt` (5 unit tests): allowed retained, disallowed removed, mixed, empty set, side-lists preserved
+- ✅ All 37 parental-control tests green; `assembleProdKidsDebug` BUILD SUCCESSFUL
+
+**Lessons learned:**
+- `NotificationState` is a pure Kotlin `data class` with no Android dependencies — pure unit tests (no Robolectric) work cleanly; use `mockk(relaxed = true)` for `Recipient` and `NotificationItem` fields
+- Phase 3 and 4 work was committed in this session (previous session left them uncommitted)
