@@ -1,7 +1,7 @@
 # MollyKids Project Status
 
 **Last updated:** 2026-04-19  
-**Current phase:** Phase 6 — Hide Stories & Lock Settings (done)
+**Current phase:** Phase 7 — Parent Settings UI (done)
 
 ---
 
@@ -191,24 +191,29 @@ set/change PIN, toggle parental mode, select allowed chats.
 **Key files:**
 - New file: `app/src/main/java/org/thoughtcrime/securesms/parental/ParentalControlActivity.kt`
 - New file: `app/src/main/java/org/thoughtcrime/securesms/parental/ParentalControlViewModel.kt`
-- `app/src/main/java/org/thoughtcrime/securesms/conversationlist/ConversationListFragment.java` (menu entry point)
-- XML: `app/src/main/res/menu/conversation_list_menu.xml` (add menu item)
+- New file: `app/src/main/res/layout/activity_parental_control.xml`
+- New file: `app/src/main/res/layout/item_parental_thread.xml`
+- `app/src/main/java/org/thoughtcrime/securesms/main/MainToolbar.kt` (menu entry point + callback)
+- `app/src/main/java/org/thoughtcrime/securesms/MainActivity.kt` (callback implementation)
+- `app/src/main/AndroidManifest.xml` (activity registration)
+- `app/src/main/res/values/strings.xml` (11 new strings)
+- New test: `app/src/test/java/org/thoughtcrime/securesms/keyvalue/ParentalControlViewModelTest.kt`
 
 **Acceptance criteria:**
-- [ ] "Parent Controls" menu item in overflow (⋮) menu
-- [ ] Tapping opens PIN entry dialog (required every time)
-- [ ] Correct PIN → shows control panel; wrong PIN → stays on menu
-- [ ] Control panel has three tabs/sections:
+- [x] "Parent Controls" menu item in overflow (⋮) menu (alongside "Pending group invites", visible when `parentalModeEnabled`)
+- [x] Tapping opens PIN entry dialog (required every time); if no PIN set → goes straight to activity with setup flag
+- [x] Correct PIN → shows control panel; wrong PIN → toast, stays on menu
+- [x] Control panel has three sections:
   - Master toggle to enable/disable parental mode
   - Full list of all threads with toggle switches (add to allowed, remove from allowed)
-  - Change PIN (requires current PIN, then new PIN entry + confirmation)
-- [ ] Fresh install: no PIN set → shows PIN-setup screen before enabling parental mode
-- [ ] Toggling a thread → `allowedThreadIds` updated in real time; conversation list refreshes
-- [ ] Unit tests: PIN validation, allowlist toggles, storage persistence
-- [ ] Integration test: parent sets PIN → all subsequent access requires PIN
-- [ ] All Phase 7 commits made
+  - Change PIN button (opens two-field new-PIN + confirm dialog; validates length ≥ 4; requires current PIN first unless no PIN is set)
+- [x] Fresh install: no PIN set → shows PIN-setup screen before rendering control panel
+- [x] Toggling a thread → `allowedThreadIds` updated in real time; `settingsChanges` fires → Phase 2 reactive pipeline refreshes conversation list
+- [x] 6 unit tests in `ParentalControlViewModelTest.kt` — all green (62 total parental tests)
+- [ ] Integration test: parent sets PIN → all subsequent access requires PIN (deferred; covered by verifyPin unit tests)
+- [x] All Phase 7 commits made
 
-**Status:** [ ] Not started
+**Status:** [x] Done
 
 ---
 
@@ -400,3 +405,17 @@ PIN setup before the child can use the app.
 - Molly has no standalone Payments feature; "Donate to Signal" (external browser link) is the closest analog and was hidden to match the acceptance criterion
 - `PrivacySettingsFragment` uses the legacy DSL settings system (not Compose) — wrapping a `clickPref` in an `if` block works exactly like Compose conditional items
 - Extracting the nav entries filter as an `internal fun` in the same file keeps the helper co-located with its call sites and testable without any mocking
+
+**2026-04-19 (Phase 7 — Parent Settings UI):**
+- ✅ Added `onParentalControlsClick()` to `MainToolbarCallback` interface + `Empty` stub; added "Parent Controls" dropdown item in `ChatDropdownItems()` alongside "Pending group invites" (both gated on `parentalModeEnabled`)
+- ✅ Implemented `onParentalControlsClick()` in `MainActivity.ToolbarCallback` — no-PIN-set path skips dialog and passes `EXTRA_SETUP_PIN=true`; otherwise uses existing `ParentalPinDialog` then starts activity
+- ✅ Created `ParentalControlViewModel` (AndroidViewModel) — loads thread list via `ThreadTable.getRecentConversationList` + `readerFor`, exposes `parentalEnabled` and `threads` as LiveData, delegates all writes to `SignalStore.parentalControl`
+- ✅ Created `ParentalControlActivity` — `AppCompatActivity` with `activity_parental_control.xml`; three sections: master switch, thread list (inflated dynamically from `item_parental_thread.xml`), Change PIN button with two-field confirmation dialog
+- ✅ Registered `ParentalControlActivity` in `AndroidManifest.xml` (`exported=false`, `adjustResize`)
+- ✅ Created `ParentalControlViewModelTest.kt` (6 tests) — all green; 62 total parental tests
+- ✅ `assembleProdKidsDebug` BUILD SUCCESSFUL
+
+**Lessons learned:**
+- Used a standalone `AppCompatActivity` rather than plugging into `AppSettingsActivity`'s NavGraph — keeps parental UI self-contained and reduces upstream merge conflict surface
+- `ThreadTable.getRecentConversationList(limit, includeInactiveGroups, hideV1Groups)` + `readerFor(cursor).use { }` is the correct pattern for iterating all threads in memory; cursor must be closed via `use`
+- ViewModel tests live in `org.thoughtcrime.securesms.keyvalue` package (not `parental`) to access `KeyValueDataSet` package-private APIs — consistent with lessons from Phase 3

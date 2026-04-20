@@ -81,7 +81,15 @@ conversation memory to understand where we are.
 - **`project_status.md`** — Living status document; read at the start of every session
 - **`app/build.gradle.kts`** — Gradle build config; add `kids` flavor here
 - **`app/src/main/java/org/thoughtcrime/securesms/keyvalue/`** — Add `ParentalControlValues.kt` here
+- **`app/src/main/java/org/thoughtcrime/securesms/parental/`** — All new parental UI files (Activity, ViewModel, Fragments, Dialogs)
 - **Plan file:** `/plans/there-exists-a-fork-ticklish-treasure.md` — Detailed implementation roadmap
+
+## Architecture Patterns (Established by Phases 1–7)
+
+- **New parental UI screens** → standalone `AppCompatActivity` in `parental/` package, registered in manifest with `exported=false`. Do NOT plug into `AppSettingsActivity`'s NavGraph — too many upstream merge conflicts.
+- **Parental-gated menu items** → add to `MainToolbarCallback` interface + `Empty` stub + `ChatDropdownItems()` composable in `MainToolbar.kt`; implement in `MainActivity.ToolbarCallback`.
+- **Thread data access** → `SignalDatabase.threads.getRecentConversationList(limit, includeInactiveGroups, hideV1Groups)` + `readerFor(cursor).use { }`.
+- **Parental unit tests** → always in `org.thoughtcrime.securesms.keyvalue` package (not `parental`) to access `KeyValueDataSet` package-private APIs.
 
 ## Registration Approach (Reference)
 
