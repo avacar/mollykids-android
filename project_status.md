@@ -1,7 +1,7 @@
 # MollyKids Project Status
 
 **Last updated:** 2026-04-19  
-**Current phase:** Phase 5 — Notification Suppression
+**Current phase:** Phase 6 — Hide Stories & Lock Settings (done)
 
 ---
 
@@ -165,20 +165,22 @@ threads show notifications normally.
 Privacy/Advanced, Payments) from the child's Settings screen.
 
 **Key files:**
-- `app/src/main/java/org/thoughtcrime/securesms/main/MainActivity.kt` (or bottom-nav host)
-- `app/src/main/java/org/thoughtcrime/securesms/preferences/ApplicationPreferencesActivity.java` (or Compose equivalent)
+- `app/src/main/java/org/thoughtcrime/securesms/main/MainNavigation.kt` (Stories tab filter)
+- `app/src/main/java/org/thoughtcrime/securesms/components/settings/app/AppSettingsFragment.kt` (Account/Linked Devices/Donate rows)
+- `app/src/main/java/org/thoughtcrime/securesms/components/settings/app/privacy/PrivacySettingsFragment.kt` (Advanced sub-setting)
+- `app/src/test/java/org/thoughtcrime/securesms/keyvalue/ParentalNavigationFilterTest.kt` (new)
 
 **Acceptance criteria:**
-- [ ] Stories tab/menu item visibility gated on `!parentalModeEnabled`
-- [ ] Settings categories hidden:
+- [x] Stories tab/menu item visibility gated on `!parentalModeEnabled`
+- [x] Settings categories hidden:
   - Account (phone number, username, linked devices, device transfer)
   - Privacy > Advanced
-  - Payments
-- [ ] Benign settings remain visible: Notifications, Appearance, Chat settings
-- [ ] Unit/integration tests: parental mode ON → Stories tab absent, Account settings not accessible
+  - Payments (mapped to "Donate to Signal" — no standalone Payments in Molly)
+- [x] Benign settings remain visible: Notifications, Appearance, Chat settings, Stories settings row
+- [x] Unit/integration tests: 4 new tests in `ParentalNavigationFilterTest.kt` — all green (41 total parental tests)
 - [ ] All Phase 6 commits made
 
-**Status:** [ ] Not started
+**Status:** [x] Done
 
 ---
 
@@ -384,3 +386,17 @@ PIN setup before the child can use the app.
 **Lessons learned:**
 - `NotificationState` is a pure Kotlin `data class` with no Android dependencies — pure unit tests (no Robolectric) work cleanly; use `mockk(relaxed = true)` for `Recipient` and `NotificationItem` fields
 - Phase 3 and 4 work was committed in this session (previous session left them uncommitted)
+
+**2026-04-19 (Phase 6 — Hide Stories & Lock Settings):**
+- ✅ Extracted `buildNavEntries(isStoriesEnabled, parentalModeEnabled)` helper from `MainNavigation.kt` — applied to both `MainNavigationBar` and `MainNavigationRail`
+- ✅ Stories tab filtered out when `parentalModeEnabled = true`, independently of the Stories feature flag
+- ✅ Account, Linked Devices, Donate to Signal rows + their trailing divider wrapped in `if (!parentalModeEnabled)` in `AppSettingsFragment.kt`
+- ✅ Privacy > Advanced `clickPref` (+ preceding divider) wrapped in `if (!SignalStore.parentalControl.parentalModeEnabled)` in `PrivacySettingsFragment.kt`
+- ✅ Benign settings (Appearance, Chats, Stories privacy settings, Notifications, Privacy top-level, Backups, Network, Help) remain visible
+- ✅ Created `ParentalNavigationFilterTest.kt` (4 unit tests) — 41 total parental tests green
+- ✅ `assembleProdKidsDebug` BUILD SUCCESSFUL
+
+**Lessons learned:**
+- Molly has no standalone Payments feature; "Donate to Signal" (external browser link) is the closest analog and was hidden to match the acceptance criterion
+- `PrivacySettingsFragment` uses the legacy DSL settings system (not Compose) — wrapping a `clickPref` in an `if` block works exactly like Compose conditional items
+- Extracting the nav entries filter as an `internal fun` in the same file keeps the helper co-located with its call sites and testable without any mocking
