@@ -255,6 +255,31 @@ PIN setup before the child can use the app.
 - **Upstream merge conflicts:** As Molly evolves, the `kids` flavor and new files will need
   periodic rebasing. No automated merge strategy defined yet.
 
+- **1:1 message request handling (deferred):** The "Pending group invites" flow only surfaces
+  GROUP_V2_INVITE requests; a 1:1 direct message from a new contact (e.g. a parent messaging the
+  child for the first time) does not appear there. Workaround: parent temporarily disables parental
+  mode, accepts the message request normally, re-enables parental mode, then adds the thread via
+  Parent Controls. Proper fix is to extend Phase 4's pending-invites flow to also surface pending
+  1:1 message requests (see Feature Backlog).
+
+- **Initial linked-device sync delay:** On a freshly linked child tablet, Signal's sync protocol
+  takes a few seconds to minutes to deliver conversation history from the primary device. During
+  this window the conversation list appears empty even with parental mode off. Phase 5 notification
+  suppression (empty `allowedThreadIds` on fresh install) removes the notification cue that would
+  otherwise hint that sync completed. Workaround: navigate to "new messages" and tap the contact to
+  trigger a targeted sync. This is standard Signal behavior, not a bug in our code, but Phase 8's
+  first-run setup flow should guide parents through this wait.
+
+- **New Group menu item not gated (fixed 2026-05-03):** The "New Group" item in the Chats `...`
+  overflow menu was visible when parental mode was on. Fixed by wrapping it in a parental-mode
+  guard in `ChatDropdownItems()` in `MainToolbar.kt`.
+
+- **"Create a call link" size/load mismatch (fixed 2026-05-03):** `CallLogPagedDataSource.size()`
+  counted the CreateCallLink row regardless of parental mode, while `load()` skipped it when
+  parental mode was on. This violated the paged-data-source contract and allowed the row to appear
+  as a stale/placeholder slot. Fixed by moving the parental-mode check into `hasCallLinkRow` at
+  construction time so `size()` and `load()` are always consistent.
+
 ---
 
 ## Feature Backlog
@@ -419,3 +444,14 @@ PIN setup before the child can use the app.
 - Used a standalone `AppCompatActivity` rather than plugging into `AppSettingsActivity`'s NavGraph — keeps parental UI self-contained and reduces upstream merge conflict surface
 - `ThreadTable.getRecentConversationList(limit, includeInactiveGroups, hideV1Groups)` + `readerFor(cursor).use { }` is the correct pattern for iterating all threads in memory; cursor must be closed via `use`
 - ViewModel tests live in `org.thoughtcrime.securesms.keyvalue` package (not `parental`) to access `KeyValueDataSet` package-private APIs — consistent with lessons from Phase 3
+
+**2026-05-03 (Device testing — bug fixes):**
+- ✅ Fixed "New Group" overflow menu item visible in parental mode — wrapped in `if (!SignalStore.parentalControl.parentalModeEnabled)` in `ChatDropdownItems()` (`MainToolbar.kt`)
+- ✅ Fixed "Create a call link" row appearing in Calls tab in parental mode — root cause was `CallLogPagedDataSource.size()` counting the row regardless of parental mode while `load()` skipped it, violating the paged-data-source contract; moved parental-mode check into `hasCallLinkRow` property so `size()` and `load()` are always consistent (`CallLogPagedDataSource.kt`)
+- ✅ Diagnosed initial linked-device sync delay (empty conversation list on fresh tablet); confirmed not caused by our code — Signal sync lag + Phase 5 notification suppression removes the visible cue that sync completed; documented in Known Issues
+- ✅ Documented 1:1 message request gap (not surfaced by "Pending group invites") in Known Issues
+- ✅ New build deployed to tablet (device G001NW06129601K2); `assembleProdKidsDebug` BUILD SUCCESSFUL
+
+**Lessons learned:**
+- `PagedDataSource.size()` and `load()` must be consistent — if `load()` conditionally skips an item, `size()` must also not count it, or the paging library may render a ghost/stale row for the missing slot
+- When a new menu item needs parental gating, check BOTH the composable rendering it (`ChatDropdownItems`) AND any XML menu files — the Compose toolbar ignores the XML menu entirely, so only the composable matters
