@@ -1,7 +1,7 @@
 # MollyKids Project Status
 
-**Last updated:** 2026-04-19  
-**Current phase:** Phase 7 — Parent Settings UI (done)
+**Last updated:** 2026-05-03  
+**Current phase:** Phase 7 — Parent Settings UI (done); upstream synced to v8.7.3-2
 
 ---
 
@@ -455,3 +455,11 @@ PIN setup before the child can use the app.
 **Lessons learned:**
 - `PagedDataSource.size()` and `load()` must be consistent — if `load()` conditionally skips an item, `size()` must also not count it, or the paging library may render a ghost/stale row for the missing slot
 - When a new menu item needs parental gating, check BOTH the composable rendering it (`ChatDropdownItems`) AND any XML menu files — the Compose toolbar ignores the XML menu entirely, so only the composable matters
+
+**2026-05-03 (Upstream sync — Molly v8.7.3-2):**
+- ✅ Verified no outstanding security CVEs — GHSL-2026-082 and GHSL-2026-102 were both fixed before our 8.7.3-1 baseline
+- ✅ Identified Molly v8.7.3-2 hotfix (released 2026-04-29) as the only upstream delta since our fork point
+- ✅ Fetched upstream and confirmed 6 commits: MollySocket/LinkDeviceRepository refactor, message-send failure loop fix (#742), microG detection (Android 11+), translation updates, revision bump
+- ✅ Merged `upstream/main` (v8.7.3-2) into `parental-controls` with no conflicts — hotfix touches `MollySocketRepository.kt`, `core-gms/base/AndroidManifest.xml`, and translation files; zero overlap with our parental files
+- ✅ `mollyRevision` bumped to 2 in `app/build.gradle.kts` (auto-resolved by git)
+- ✅ All 62 parental-control unit tests pass post-merge; `assembleProdKidsDebug` BUILD SUCCESSFUL
