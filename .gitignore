@@ -11,3 +11,7 @@ signing.properties
 .kotlin
 /reproducible-builds/certs
 /reproducible-builds/outputs
+
+# Internal Claude Code dev files — not part of the public fork
+CLAUDE.md
+project_status.md
