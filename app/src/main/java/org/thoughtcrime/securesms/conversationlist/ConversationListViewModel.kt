@@ -236,9 +236,14 @@ sealed class ConversationListViewModel(
   }
 
   private fun loadCurrentFolders() {
-    viewModelScope.launch(Dispatchers.IO) {
+    viewModelScope.launch(Dispatchers.Default) {
       val folders = ChatFoldersRepository.getCurrentFolders()
-      val unreadCountAndEmptyAndMutedStatus = ChatFoldersRepository.getUnreadCountAndEmptyAndMutedStatusForFolders(folders)
+
+      val unreadCountAndEmptyAndMutedStatus: Map<Long, Triple<Int, Boolean, Boolean>> = if (folders.size > 1) {
+        ChatFoldersRepository.getUnreadCountAndEmptyAndMutedStatusForFolders(folders)
+      } else {
+        emptyMap()
+      }
 
       val selectedFolderId = if (currentFolder.id == -1L) {
         folders.firstOrNull()?.id
@@ -279,7 +284,7 @@ sealed class ConversationListViewModel(
   }
 
   fun onUpdateMute(chatFolder: ChatFolderRecord, until: Long) {
-    viewModelScope.launch(Dispatchers.IO) {
+    viewModelScope.launch(Dispatchers.Default) {
       val ids = SignalDatabase.threads.getRecipientIdsByChatFolder(chatFolder)
       val recipientIds: List<RecipientId> = ids.filter { id ->
         Recipient.resolved(id).muteUntil != until
@@ -300,14 +305,14 @@ sealed class ConversationListViewModel(
   }
 
   fun removeChatFromFolder(threadId: Long) {
-    viewModelScope.launch(Dispatchers.IO) {
+    viewModelScope.launch(Dispatchers.Default) {
       SignalDatabase.chatFolders.removeFromFolder(currentFolder.id, threadId)
       scheduleChatFolderSync(currentFolder.id)
     }
   }
 
   fun addToFolder(folderId: Long, threadIds: List<Long>) {
-    viewModelScope.launch(Dispatchers.IO) {
+    viewModelScope.launch(Dispatchers.Default) {
       val includedChats = folders.find { it.chatFolder.id == folderId }?.chatFolder?.includedChats
       val threadIdsNotIncluded = threadIds.filterNot { threadId ->
         includedChats?.contains(threadId) ?: false
